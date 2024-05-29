@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>市值和PE TTM折线图示例</title>
+    <!-- 引入 jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 引入 Highcharts 的 Highstock 库 -->
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/export-data.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #chart-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 600px;
+            margin: 20px 0;
+        }
+        .checkbox-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .checkbox-container label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 创建一个容器用于图表 -->
+    <div id="chart-container"></div>
+
+    <!-- 创建复选框容器 -->
+    <div class="checkbox-container">
+        <label for="show-market-value">显示市值</label>
+        <input type="checkbox" id="show-market-value" checked>
+        <label for="show-pettm">显示PE TTM</label>
+        <input type="checkbox" id="show-pettm" checked>
+    </div>
+
+    <script>
+        // 示例数据获取函数
+        function fetchData(callback) {
+            $.ajax({
+                url: '/api/data', // Flask API endpoint
+                method: 'GET',
+                success: function(response) {
+                    var data = {
+                        date: response[0].date,
+                        market_value: response[1].market_value,
+                        pettm: response[2].pe_ttm
+                    };
+                    callback(data);
+                },
+                error: function(error) {
+                    console.error('Error fetching data:', error);
+                }
+            });
+        }
+
+        // 初始化图表的函数
+        function initializeChart(data) {
+            var chart = Highcharts.stockChart('chart-container', {
+                rangeSelector: {
+                    selected: 1
+                },
+                title: {
+                    text: 'Market Value and PE TTM Over Time'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    dateTimeLabelFormats: {
+                        day: '%Y/%m/%d',
+                        week: '%Y/%m/%d',
+                        month: '%Y/%m/%d',
+                        year: '%Y/%m/%d'
+                    }
+                },
+                yAxis: [{
+                    title: {
+                        text: 'Market Value'
+                    }
+                }, {
+                    title: {
+                        text: 'PE TTM'
+                    },
+                    opposite: true
+                }],
+                series: [{
+                    name: 'Market Value',
+                    data: data.date.map((date, i) => [new Date(date).getTime(), data.market_value[i]]),
+                    yAxis: 0,
+                    type: 'line',
+                    marker: {
+                        enabled: true,
+                        radius: 3
+                    },
+                    visible: true
+                }, {
+                    name: 'PE TTM',
+                    data: data.date.map((date, i) => [new Date(date).getTime(), data.pettm[i]]),
+                    yAxis: 1,
+                    type: 'line',
+                    marker: {
+                        enabled: true,
+                        radius: 3
+                    },
+                    visible: true
+                }],
+                tooltip: {
+                    shared: true,
+                    formatter: function () {
+                        let s = `<b>${Highcharts.dateFormat('%y/%m/%d', this.x)}</b>`;
+                        this.points.forEach(point => {
+                            s += `<br/><span style="color:${point.color}">\u25CF</span> ${point.series.name}: ${point.y}`;
+                        });
+                        return s;
+                    }
+                }
+            });
+
+            // 监听复选框的变化
+            $('#show-market-value').change(function() {
+                chart.series[0].update({
+                    visible: this.checked
+                });
+            });
+
+            $('#show-pettm').change(function() {
+                chart.series[1].update({
+                    visible: this.checked
+                });
+            });
+        }
+
+        // 获取数据并初始化图表
+        fetchData(function(data) {
+            initializeChart(data);
+        });
+    </script>
+</body>
+</html>
